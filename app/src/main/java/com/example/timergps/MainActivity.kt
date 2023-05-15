@@ -1,7 +1,9 @@
 package com.example.timergps
 
+import android.annotation.SuppressLint
 import android.content.IntentSender
 import android.os.Bundle
+import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -15,7 +17,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.example.timergps.ui.theme.TimerGPSTheme
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.LocationSettingsRequest
 import com.google.android.gms.location.LocationSettingsResponse
@@ -25,9 +29,14 @@ import com.google.android.gms.tasks.Task
 
 class MainActivity : ComponentActivity() {
     private val REQUEST_CHECK_SETTINGS = 0x1
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private lateinit var locationRequest: LocationRequest
+    private lateinit var locationCallback: LocationCallback
+    private var requestingLocationUpdates: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
         //Pedir permisos
         val locationPermissionRequest = registerForActivityResult(
@@ -41,7 +50,7 @@ class MainActivity : ComponentActivity() {
                     // Only approximate location access granted.
                 } else -> {
                 // No location access granted.
-            }
+                }
             }
         }
         locationPermissionRequest.launch(arrayOf(
@@ -54,19 +63,19 @@ class MainActivity : ComponentActivity() {
             1000
         )
         locationRequestBuilder.setMinUpdateIntervalMillis(5000)
-
-        val locationRequest = locationRequestBuilder.build()
+        locationRequest = locationRequestBuilder.build()
         val builder = LocationSettingsRequest.Builder().addLocationRequest(locationRequest)
-
         val client: SettingsClient = LocationServices.getSettingsClient(this)
         val task: Task<LocationSettingsResponse> = client.checkLocationSettings(builder.build())
 
+        //ver si esta encendido el GPS
         task.addOnSuccessListener { locationSettingsResponse ->
             // All location settings are satisfied. The client can initialize
             // location requests here.
             // ...
+            requestingLocationUpdates = true
         }
-
+        //si no lo esta preguntar que lo encienda
         task.addOnFailureListener { exception ->
             if (exception is ResolvableApiException){
                 // Location settings are not satisfied, but this can be fixed
@@ -76,12 +85,22 @@ class MainActivity : ComponentActivity() {
                     // and check the result in onActivityResult().
                     exception.startResolutionForResult(this@MainActivity,
                         REQUEST_CHECK_SETTINGS)
+
                 } catch (sendEx: IntentSender.SendIntentException) {
                     // Ignore the error.
                 }
             }
         }
 
+        locationCallback = object : LocationCallback() {
+             fun onLocationResult(locationResult: LocationResult?) {
+                locationResult ?: return
+                for (location in locationResult.locations){
+                    // Update UI with location data
+                    // ...
+                }
+            }
+        }
 
 
 
@@ -94,6 +113,19 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onResume() {
+        super.onResume()
+        if (requestingLocationUpdates) startLocationUpdates()
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun startLocationUpdates() {
+        fusedLocationClient.requestLocationUpdates(locationRequest,
+            locationCallback,
+            Looper.getMainLooper())
+    }
+
 }
 
 @Composable
