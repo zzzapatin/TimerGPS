@@ -126,6 +126,15 @@ class MainActivity : ComponentActivity() {
             Looper.getMainLooper())
     }
 
+    override fun onPause() {
+        super.onPause()
+        stopLocationUpdates()
+    }
+
+    private fun stopLocationUpdates() {
+        fusedLocationClient.removeLocationUpdates(locationCallback)
+    }
+
 }
 
 @Composable
