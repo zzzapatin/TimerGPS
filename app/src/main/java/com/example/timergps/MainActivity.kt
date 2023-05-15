@@ -2,6 +2,7 @@ package com.example.timergps
 
 import android.annotation.SuppressLint
 import android.content.IntentSender
+import android.location.Location
 import android.os.Bundle
 import android.os.Looper
 import androidx.activity.ComponentActivity
@@ -33,7 +34,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var locationRequest: LocationRequest
     private lateinit var locationCallback: LocationCallback
     private var requestingLocationUpdates: Boolean = false
-
+    lateinit var mCurrentLocation: Location
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
@@ -72,8 +73,15 @@ class MainActivity : ComponentActivity() {
         task.addOnSuccessListener { locationSettingsResponse ->
             // All location settings are satisfied. The client can initialize
             // location requests here.
-            // ...
             requestingLocationUpdates = true
+            fusedLocationClient.lastLocation
+                .addOnSuccessListener { location : Location? ->
+                    // Got last known location. In some rare situations this can be null.
+                    if (location != null) {
+                        mCurrentLocation = location
+                    }
+                }
+
         }
         //si no lo esta preguntar que lo encienda
         task.addOnFailureListener { exception ->
@@ -93,11 +101,11 @@ class MainActivity : ComponentActivity() {
         }
 
         locationCallback = object : LocationCallback() {
-             fun onLocationResult(locationResult: LocationResult?) {
+              fun onLocationResultTemp(locationResult: LocationResult?) {
                 locationResult ?: return
                 for (location in locationResult.locations){
                     // Update UI with location data
-                    // ...
+                    mCurrentLocation = location
                 }
             }
         }
@@ -108,7 +116,7 @@ class MainActivity : ComponentActivity() {
             TimerGPSTheme {
                 // A surface container using the 'background' color from the theme
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    Greeting("Android")
+                    Greeting(mCurrentLocation.altitude.toString() + mCurrentLocation.longitude.toString())
                 }
             }
         }
@@ -134,6 +142,7 @@ class MainActivity : ComponentActivity() {
     private fun stopLocationUpdates() {
         fusedLocationClient.removeLocationUpdates(locationCallback)
     }
+
 
 }
 
