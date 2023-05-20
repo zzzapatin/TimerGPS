@@ -45,30 +45,9 @@ class MainActivity : ComponentActivity() {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
         obtainPermissionRequest()
-
         requestLocationSettings()
-
-        fusedLocationClient.lastLocation
-            .addOnSuccessListener { location : Location? ->
-                // Got last known location. In some rare situations this can be null.
-                if (location != null) {
-                    mCurrentLocation = location
-                    Log.d("MyLocation", mCurrentLocation.toString())
-                }else{
-                    Log.d("MyLocation", "fail")
-                }
-            }
-
-        locationCallback = object : LocationCallback() {
-             fun onLocationResultTemp(locationResult: LocationResult?) {
-                locationResult ?: return
-                for (location in locationResult.locations){
-                    Log.d("MyLocation", location.toString())
-                }
-            }
-        }
-
-
+        getLastKnownLocation()
+        getLocationCallback()
 
         setContent {
             TimerGPSTheme {
@@ -80,7 +59,39 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    //Pedir permisos
+
+    private fun getLocationCallback(){
+        locationCallback = object : LocationCallback() {
+            fun onLocationResultTemp(locationResult: LocationResult?) {
+                locationResult ?: return
+                for (location in locationResult.locations){
+                    Log.d("MyLocation", location.toString())
+                }
+            }
+        }
+    }
+    private fun getLastKnownLocation(){
+        val fineLocationPermission = ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+        val coarseLocationPermission = ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
+
+        if (fineLocationPermission != PackageManager.PERMISSION_GRANTED
+            && coarseLocationPermission != PackageManager.PERMISSION_GRANTED)
+        {
+            obtainPermissionRequest()
+        }
+        fusedLocationClient.lastLocation
+            .addOnSuccessListener { location : Location? ->
+                // Got last known location. In some rare situations this can be null.
+                if (location != null) {
+                    mCurrentLocation = location
+                    Log.d("MyLocation", mCurrentLocation.toString())
+                }else{
+                    Log.d("MyLocation", "fail")
+                }
+            }
+    }
+
+    //Request location permissions
     private fun obtainPermissionRequest(){
         val locationPermissionRequest = registerForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
@@ -110,12 +121,12 @@ class MainActivity : ComponentActivity() {
         val client: SettingsClient = LocationServices.getSettingsClient(this)
         val task: Task<LocationSettingsResponse> = client.checkLocationSettings(builder.build())
 
-        //ver si esta encendido el GPS
+        //Check if GPS is on
         task.addOnSuccessListener { locationSettingsResponse ->
             // All location settings are satisfied. The client can initialize. location requests here.
             requestingLocationUpdates = true
         }
-        //si no lo esta preguntar que lo encienda
+        //If its not, ask to turn it on
         task.addOnFailureListener { exception ->
             if (exception is ResolvableApiException){
                 // Location settings are not satisfied, but this can be fixed by showing the user a dialog.
